@@ -1,43 +1,62 @@
-name: Deploy Spring Boot to Cloud Run
+name: Build and Deploy Spring Boot to Cloud Run
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
+
+env:
+  REGION: asia-south1
+  REPOSITORY: springboot-gcp-repo       # Artifact Registry repo
+  SERVICE: springboot-gcp-cloudrun-app  # Cloud Run service name
 
 jobs:
-  build-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      # 1️⃣ Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      # 2️⃣ Authenticate to GCP
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Build JAR
-      run: mvn clean package -DskipTests
+      # 3️⃣ Setup gcloud CLI
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    - name: Authenticate GCP
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+      # 4️⃣ Configure Docker for Artifact Registry
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev
 
-    - name: Configure Docker for GCP
-      run: gcloud auth configure-docker
+      # 5️⃣ Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }} .
 
-    - name: Build and Push Container
-      run: |
-        gcloud builds submit \
-          --tag gcr.io/$GCP_PROJECT_ID/springboot-cloudrun-app
+      # 6️⃣ Push Docker image to Artifact Registry
+      - name: Push Docker image
+        run: |
+          docker push ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }}
 
-    - name: Deploy to Cloud Run
-      run: |
-        gcloud run deploy springboot-cloudrun-app \
-          --image gcr.io/$GCP_PROJECT_ID/springboot-cloudrun-app \
-          --region $GCP_REGION \
-          --platform managed \
-          --allow-unauthenticated
+      # 7️⃣ Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${SERVICE} \
+            --image ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }} \
+            --region ${REGION} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080
+	
