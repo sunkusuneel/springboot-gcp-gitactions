@@ -1,3 +1,6 @@
-variable "project_id" {default = "rare-drummer-475216-k3" }
-variable "region" { default = "us-central1" }
-variable "service_name" { default = "springboot-gcp-gitactions" }
+variable "project_id" {}
+variable "region" {}
+variable "service_name" {}
+variable "image" {}
+variable "credentials_file" {}
+variable "repository_name" {}

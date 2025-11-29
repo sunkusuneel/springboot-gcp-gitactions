@@ -1,25 +1,30 @@
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project     = var.project_id
+  region      = var.region
+  credentials = file(var.credentials_file)
 }
 
-# Enable APIs
-resource "google_project_service" "cloud_run" {
-  service = "run.googleapis.com"
-}
-resource "google_project_service" "cloud_build" {
-  service = "cloudbuild.googleapis.com"
+# 1️⃣ Artifact Registry repository
+resource "google_artifact_registry_repository" "docker_repo" {
+  name     = var.repository_name
+  format   = "DOCKER"
+  location = var.region
+  description = "Docker repository for Spring Boot Cloud Run app"
+  cleanup_policy {
+    max_retention_days = 30
+    untagged          = true
+  }
 }
 
-# Cloud Run service
-resource "google_cloud_run_service" "service" {
+# 2️⃣ Cloud Run service
+resource "google_cloud_run_service" "springboot" {
   name     = var.service_name
   location = var.region
 
   template {
     spec {
       containers {
-        image = "gcr.io/${var.project_id}/${var.service_name}:latest"
+        image = var.image
         ports {
           container_port = 8080
         }
@@ -27,18 +32,8 @@ resource "google_cloud_run_service" "service" {
     }
   }
 
-  traffics {
+  traffic {
     percent         = 100
     latest_revision = true
   }
 }
-
-# Allow public access
-resource "google_cloud_run_service_iam_member" "invoker" {
-  location = google_cloud_run_service.service.location
-  project  = var.project_id
-  service  = google_cloud_run_service.service.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
