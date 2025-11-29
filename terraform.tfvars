@@ -1,6 +1,6 @@
 project_id       = "rare-drummer-475216-k3"
 region           = "us-central1"
-service_name     = "springboot-gcp-cloudrun-app"
+service_name     = "springboot-gcp-gitactions"
 repository_name  = "springboot-gcp-repo"
 image            = "us-central1-docker.pkg.dev/rare-drummer-475216-k3/springboot-gcp-repo/springboot-gcp-gitactions:latest"
 credentials_file = "gha-creds.json"
