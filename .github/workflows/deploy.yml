@@ -1,13 +1,9 @@
-name: Build and Deploy Spring Boot to Cloud Run
+name: Build Docker and Deploy Spring Boot to Cloud Run via Terraform
 
 on:
   push:
     branches:
       - main
-
-permissions:
-  contents: read
-  id-token: write
 
 env:
   REGION: us-central1
@@ -19,36 +15,66 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      # 2️⃣ Save GCP credentials to a file for Terraform
+      - name: Save GCP credentials
+        run: echo "${{ secrets.GCP_SA_KEY }}" > gha-creds.json
+
+      # 3️⃣ Authenticate to Google Cloud
+      - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      # 4️⃣ Setup gcloud CLI
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${REGION}-docker.pkg.dev
+      # 5️⃣ Configure Docker for Artifact Registry
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
 
+      # 6️⃣ Build Docker image
       - name: Build Docker image
         run: |
           docker build -t ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }} .
 
-      - name: Push Docker image to Artifact Registry
+      # 7️⃣ Push Docker image
+      - name: Push Docker image
         run: |
           docker push ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }}
 
-      - name: Deploy to Cloud Run
+      # 8️⃣ Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      # 9️⃣ Terraform init
+      - name: Terraform Init
+        run: terraform init
+
+      # 🔟 Terraform plan
+      - name: Terraform Plan
         run: |
-          gcloud run deploy ${SERVICE} \
-            --image ${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }} \
-            --region ${REGION} \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 8080
+          terraform plan \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="region=${REGION}" \
+            -var="service_name=${SERVICE}" \
+            -var="image=${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }}" \
+            -var="credentials_file=gha-creds.json"
+
+      # 1️⃣1️⃣ Terraform apply
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="region=${REGION}" \
+            -var="service_name=${SERVICE}" \
+            -var="image=${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }}" \
+            -var="credentials_file=gha-creds.json"
