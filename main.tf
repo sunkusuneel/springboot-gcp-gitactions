@@ -60,11 +60,12 @@ resource "google_cloud_run_v2_service" "springboot" {
 # Grant the 'Cloud Run Invoker' role to 'allUsers'
 # This makes the service publicly accessible.
 resource "google_cloud_run_service_iam_member" "public_access" {
-  location = google_cloud_run_v2_service.default.location
-  service  = google_cloud_run_v2_service.default.name
+  location = google_cloud_run_v2_service.springboot.location
+  service  = google_cloud_run_v2_service.springboot.name
   
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
 
 
