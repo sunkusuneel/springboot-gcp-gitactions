@@ -37,23 +37,23 @@ provider "google" {
   }
 }*/
 
-resource "google_cloud_run_v2_service" "default" {
-  name     = "my-public-service"
+resource "google_cloud_run_v2_service" "springboot" {
+  name     = var.service_name
   location = "us-central1"
   template {
-    spec {
+  
       containers {
         image = var.image
         ports {
           container_port = 8080
         }	
       }
-    }
+    
   }
 
-  traffic {
-    percent         = 100
-    latest_revision = true
+ traffic {
+    type = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
   }
 }
 
@@ -66,4 +66,5 @@ resource "google_cloud_run_service_iam_member" "public_access" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
 
