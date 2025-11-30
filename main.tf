@@ -16,7 +16,7 @@ provider "google" {
 
 
 # 2️⃣ Cloud Run service
-resource "google_cloud_run_service" "springboot" {
+/*resource "google_cloud_run_service" "springboot" {
   name     = var.service_name
   location = var.region
 
@@ -35,12 +35,26 @@ resource "google_cloud_run_service" "springboot" {
     percent         = 100
     latest_revision = true
   }
-}
+}*/
 
 resource "google_cloud_run_v2_service" "default" {
   name     = "my-public-service"
   location = "us-central1"
-  # ... other service configuration ...
+  template {
+    spec {
+      containers {
+        image = var.image
+        ports {
+          container_port = 8080
+        }	
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
 }
 
 # Grant the 'Cloud Run Invoker' role to 'allUsers'
@@ -52,3 +66,4 @@ resource "google_cloud_run_service_iam_member" "public_access" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
