@@ -36,3 +36,19 @@ resource "google_cloud_run_service" "springboot" {
     latest_revision = true
   }
 }
+
+resource "google_cloud_run_v2_service" "default" {
+  name     = "my-public-service"
+  location = "us-central1"
+  # ... other service configuration ...
+}
+
+# Grant the 'Cloud Run Invoker' role to 'allUsers'
+# This makes the service publicly accessible.
+resource "google_cloud_run_service_iam_member" "public_access" {
+  location = google_cloud_run_v2_service.default.location
+  service  = google_cloud_run_v2_service.default.name
+  
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
