@@ -13,6 +13,9 @@ provider "google" {
   credentials = file(var.credentials_file)
 }
 
+
+
+
 resource "google_cloud_run_v2_service" "springboot" {
   name     = var.service_name
   location = "us-central1"
